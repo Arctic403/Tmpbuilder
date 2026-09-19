@@ -1,0 +1,14 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+**/.cxx/
+.cxx/
+artifacts/
+*.apk
+*.aab
+*.so
+*.o
+*.obj
+*.log
+.DS_Store
