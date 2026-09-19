@@ -42,7 +42,9 @@ jobs:
           gradle-version: "9.5.0"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
 
       - name: Install pinned Android toolchain
         shell: bash
