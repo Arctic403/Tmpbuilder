@@ -31,18 +31,6 @@ enum class Schedule {
     Random
 };
 
-const char* scheduleName(Schedule schedule) {
-    switch (schedule) {
-        case Schedule::Forward:
-            return "forward";
-        case Schedule::Reverse:
-            return "reverse";
-        case Schedule::Random:
-            return "random";
-    }
-    return "unknown";
-}
-
 class Rng {
 public:
     explicit Rng(std::uint32_t seed)
