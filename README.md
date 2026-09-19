@@ -37,14 +37,13 @@ The workflow proves:
 
 ## Run
 
-GitHub:
+Every push to `main` automatically triggers **Codynex N0 Temporary Builder**.
 
-1. Open **Actions**.
-2. Select **Codynex N0 Temporary Builder**.
-3. Choose **Run workflow**.
-4. Download the `codynex-n0-<run-number>` artifact after the job passes.
+Manual `workflow_dispatch` is also retained as a fallback for reruns that do
+not require a source change.
 
-The workflow is intentionally `workflow_dispatch` only.
+After a passing run, download the
+`codynex-n0-<run-number>` artifact from GitHub Actions.
 
 ## Evidence bundle
 

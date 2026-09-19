@@ -1,6 +1,9 @@
 name: Codynex N0 Temporary Builder
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
