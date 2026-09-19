@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace codynex::n0 {
+namespace codynex::n1 {
 
 struct RunResult {
     bool pass;
@@ -11,4 +11,4 @@ struct RunResult {
 
 RunResult runAll();
 
-}  // namespace codynex::n0
+}  // namespace codynex::n1

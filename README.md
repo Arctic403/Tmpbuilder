@@ -1,22 +1,48 @@
-# Tmpbuilder — Codynex N0 Temporary Builder
+# Tmpbuilder — Codynex N1 Temporary Builder
 
-Disposable public CI surface for the Codynex N0 native Android substrate lab.
+Disposable public CI surface for the Codynex N1 generated-machinery native
+Android experiment.
 
-Canonical Codynex source remains outside this repository. This repo contains
-only the N0 build surface required to compile and verify the current native lab.
+Canonical Codynex source remains in the private/main Codynex workspace. This
+repository contains only the N1 build surface required to compile and verify the
+current native experiment.
 
 ## Purpose
 
-The workflow proves:
+Every push to `main` automatically runs the N1 proof pipeline.
 
-- the C++ N0 host suite compiles with warnings-as-errors;
-- the host-native experiment returns `"pass": true`;
-- the Android project builds with the pinned AGP/Gradle/JDK/NDK/CMake toolchain;
-- the APK contains both:
-  - `arm64-v8a/libcodynex_n0.so`
-  - `armeabi-v7a/libcodynex_n0.so`
-- the packaged ELF files report the expected ARM64/ARM32 architectures;
-- SHA-256 evidence is emitted for the APK, both native libraries and host result.
+The workflow verifies:
+
+- C++17 host compile with warnings-as-errors;
+- full host-native N1 suite returns `"pass": true`;
+- dense and frontier machinery satisfy the N1 host gates;
+- Android APK builds;
+- both required Android ABIs are packaged;
+- ELF architecture checks pass;
+- APK/native-library/host-result SHA-256 evidence is generated.
+
+## N1 experiment
+
+Generated machinery under test:
+
+- dense full-sweep execution;
+- bounded generated frontier queue/index;
+- temporary actionable-workload profile;
+- automatic dense/frontier selection.
+
+Required behavioral tests include:
+
+- dense N0 parity;
+- frontier N0 parity;
+- dense -> frontier hot replacement;
+- frontier -> dense hot replacement;
+- frontier destroy/rebuild;
+- sparse specialization evaluation reduction;
+- broad distributed-corruption tradeoff;
+- authority isolation;
+- deterministic replay;
+- controller-loss comparison;
+- low-memory gate.
 
 ## Toolchain
 
@@ -28,57 +54,61 @@ The workflow proves:
 - Android Build Tools: 36.0.0
 - Android NDK: 28.2.13676358
 - CMake: 3.22.1
-- C++: C++17 with `-Wall -Wextra -Wpedantic -Werror`
+- C++17
+- `-Wall -Wextra -Wpedantic -Werror`
 
 ## ABIs
 
 - `arm64-v8a`
 - `armeabi-v7a`
 
-## Run
+## Workflow
 
-Every push to `main` automatically triggers **Codynex N0 Temporary Builder**.
+Automatic trigger:
 
-Manual `workflow_dispatch` is also retained as a fallback for reruns that do
-not require a source change.
+```text
+push -> main
+```
 
-After a passing run, download the
-`codynex-n0-<run-number>` artifact from GitHub Actions.
+Manual `workflow_dispatch` remains available for a rerun.
 
-## Evidence bundle
+A passing run uploads:
 
-A passing run uploads for 7 days:
-
-- `codynex-n0-debug.apk`
-- `libcodynex_n0-arm64-v8a.so`
-- `libcodynex_n0-armeabi-v7a.so`
+- `codynex-n1-debug.apk`
+- `libcodynex_n1-arm64-v8a.so`
+- `libcodynex_n1-armeabi-v7a.so`
 - `host-results.json`
 - `elf-arm64.txt`
 - `elf-arm32.txt`
 - `apk-contents.txt`
 - `SHA256SUMS.txt`
 
+Artifact retention: 7 days.
+
 ## Security / scope
 
-This is disposable laboratory infrastructure.
-
-The workflow has only:
+Workflow permissions:
 
 ```yaml
 permissions:
   contents: read
 ```
 
-No repository secrets are required for the debug build.
-No Codynex signing key is stored here.
+No signing secrets are required for the debug proof build.
 
-Do not treat this builder repo, GitHub Actions, Gradle, CMake, JNI or the debug
-APK signing path as Codynex architecture. They are test/build equipment.
+This public repo is disposable build/test infrastructure. It is not Codynex
+architecture.
 
-## Disposal
+## N1 completion boundary
 
-After N0 evidence has been captured and the roadmap no longer needs this public
-builder, the workflow/repository may be archived or deleted.
+A green GitHub Actions run proves host-native + cross-ABI Android build/package
+gates.
 
-Anything published to a public repository should still be treated as public even
-after later deletion.
+It does **not** finish N1.
+
+N1 completes only after the generated APK runs the JNI/native suite on the real
+Android device and reports:
+
+```json
+{"pass":true}
+```

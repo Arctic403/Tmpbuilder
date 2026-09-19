@@ -1,4 +1,4 @@
-name: Codynex N0 Temporary Builder
+name: Codynex N1 Temporary Builder
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: codynex-n0-${{ github.ref }}
+  group: codynex-n1-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -67,10 +67,10 @@ jobs:
         shell: bash
         run: cmake --build host/build --config Release --parallel 2
 
-      - name: Run host-native N0 suite
+      - name: Run host-native N1 suite
         shell: bash
         run: |
-          ./host/build/codynex_n0_host | tee artifacts/host-results.json
+          ./host/build/codynex_n1_host | tee artifacts/host-results.json
           jq -e '.pass == true' artifacts/host-results.json > /dev/null
 
       - name: Assemble Android debug APK
@@ -83,26 +83,26 @@ jobs:
 
       - name: Verify ARM64 native library is packaged
         shell: bash
-        run: unzip -l "${APK_PATH}" | grep -F "lib/arm64-v8a/libcodynex_n0.so"
+        run: unzip -l "${APK_PATH}" | grep -F "lib/arm64-v8a/libcodynex_n1.so"
 
       - name: Verify ARM32 native library is packaged
         shell: bash
-        run: unzip -l "${APK_PATH}" | grep -F "lib/armeabi-v7a/libcodynex_n0.so"
+        run: unzip -l "${APK_PATH}" | grep -F "lib/armeabi-v7a/libcodynex_n1.so"
 
       - name: Extract packaged native libraries
         shell: bash
         run: |
-          unzip -p "${APK_PATH}" lib/arm64-v8a/libcodynex_n0.so \
-            > artifacts/libcodynex_n0-arm64-v8a.so
-          unzip -p "${APK_PATH}" lib/armeabi-v7a/libcodynex_n0.so \
-            > artifacts/libcodynex_n0-armeabi-v7a.so
+          unzip -p "${APK_PATH}" lib/arm64-v8a/libcodynex_n1.so \
+            > artifacts/libcodynex_n1-arm64-v8a.so
+          unzip -p "${APK_PATH}" lib/armeabi-v7a/libcodynex_n1.so \
+            > artifacts/libcodynex_n1-armeabi-v7a.so
 
       - name: Verify native ELF architectures
         shell: bash
         run: |
-          readelf -h artifacts/libcodynex_n0-arm64-v8a.so \
+          readelf -h artifacts/libcodynex_n1-arm64-v8a.so \
             | tee artifacts/elf-arm64.txt
-          readelf -h artifacts/libcodynex_n0-armeabi-v7a.so \
+          readelf -h artifacts/libcodynex_n1-armeabi-v7a.so \
             | tee artifacts/elf-arm32.txt
           grep -Eq 'Machine:.*AArch64' artifacts/elf-arm64.txt
           grep -Eq 'Class:.*ELF32' artifacts/elf-arm32.txt
@@ -111,24 +111,24 @@ jobs:
       - name: Copy APK and capture APK contents
         shell: bash
         run: |
-          cp "${APK_PATH}" artifacts/codynex-n0-debug.apk
+          cp "${APK_PATH}" artifacts/codynex-n1-debug.apk
           unzip -l "${APK_PATH}" > artifacts/apk-contents.txt
 
       - name: Generate SHA-256 evidence
         shell: bash
         run: |
           sha256sum \
-            artifacts/codynex-n0-debug.apk \
-            artifacts/libcodynex_n0-arm64-v8a.so \
-            artifacts/libcodynex_n0-armeabi-v7a.so \
+            artifacts/codynex-n1-debug.apk \
+            artifacts/libcodynex_n1-arm64-v8a.so \
+            artifacts/libcodynex_n1-armeabi-v7a.so \
             artifacts/host-results.json \
             > artifacts/SHA256SUMS.txt
           cat artifacts/SHA256SUMS.txt
 
-      - name: Upload disposable N0 evidence bundle
+      - name: Upload disposable N1 evidence bundle
         uses: actions/upload-artifact@v4
         with:
-          name: codynex-n0-${{ github.run_number }}
+          name: codynex-n1-${{ github.run_number }}
           path: artifacts/
           if-no-files-found: error
           retention-days: 7

@@ -1,4 +1,4 @@
-package com.codynex.n0lab
+package com.codynex.n1lab
 
 import android.app.Activity
 import android.os.Bundle
@@ -8,7 +8,7 @@ import android.widget.TextView
 class MainActivity : Activity() {
     companion object {
         init {
-            System.loadLibrary("codynex_n0")
+            System.loadLibrary("codynex_n1")
         }
     }
 
@@ -18,7 +18,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         val output = TextView(this).apply {
-            text = "Codynex N0 native lab running…"
+            text = "Codynex N1 native lab running…"
             setTextIsSelectable(true)
             setPadding(24, 24, 24, 24)
         }
