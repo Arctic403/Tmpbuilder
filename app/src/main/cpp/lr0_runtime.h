@@ -41,6 +41,18 @@ struct RuntimeSnapshot {
     std::size_t persistentStateBytes = 0U;
 };
 
+struct PersistentStateEntry {
+    std::uint16_t id = 0U;
+    ValueType type = ValueType::I64;
+    std::int64_t value = 0;
+};
+
+struct PersistentStateImage {
+    std::uint64_t programHash = 0U;
+    std::uint64_t schemaFingerprint = 0U;
+    std::vector<PersistentStateEntry> entries;
+};
+
 class LiveRuntime {
 public:
     ActivationResult activateBytes(
@@ -57,6 +69,16 @@ public:
         std::uint16_t stateId,
         std::int64_t& out
     ) const;
+
+    bool exportPersistentState(
+        PersistentStateImage& out,
+        std::string& reason
+    ) const;
+
+    bool restorePersistentState(
+        const PersistentStateImage& image,
+        std::string& reason
+    );
 
     bool hasActiveProgram() const;
     RuntimeSnapshot snapshot() const;

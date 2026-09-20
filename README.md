@@ -1,90 +1,67 @@
-# Tmpbuilder — Codynex N2 Temporary Builder
+# Codynex LR0 Live Runtime Lab
 
-Disposable public CI surface for the Codynex N2 self-reconstruction experiment.
+This tree contains the first Android LR0 implementation.
 
-Every push to `main` automatically runs the validated N2 host/build pipeline.
+## Boundary
 
-## What CI proves
+The native runtime library contains only generic CXE1/runtime mechanisms:
 
-A green run proves:
+- bounded executable decode/validation;
+- ProgramImage;
+- transactional I64 execution;
+- active/candidate replacement;
+- explicit persistent-state export/restore;
+- two-slot crash/restart recovery storage;
+- JNI host boundary.
 
-- C++17 host compile under warnings-as-errors;
-- validated host/in-process N2 suite returns `"pass": true`;
-- host report still returns `"stageComplete": false`;
-- N1 dense-equivalent parity remains 12/12;
-- N1 frontier-equivalent parity remains 12/12;
-- controller-loss preservation remains 6/6 for both paths;
-- authority-after-graph reconstruction is 6/6;
-- authority-after-tape reconstruction is 6/6;
-- oversized checkpoint rejection passes;
-- primitive catalogue authority isolation passes;
-- Android APK assembles;
-- ARM64 native library packages and verifies as AArch64;
-- ARM32 native library packages and verifies as ELF32 ARM;
-- host binary/APK/native-library/result SHA-256 evidence is emitted.
+The Kotlin lab/editor is test equipment.
 
-## What CI does NOT prove
+It creates an external `candidate.cxe` file from a tiny CXE1 assembly text and then asks the native runtime to load that file through the normal loader.
 
-Green CI does not complete N2.
+Program A/B behavior is not compiled into the native runtime.
 
-N2 still requires on the real Android device:
+## Android targets
 
-1. validated in-process N2 suite PASS;
-2. Graph -> Tape cold restart PASS after real process termination;
-3. Tape -> Graph cold restart PASS after real process termination.
-
-The host/in-process JSON intentionally reports:
-
-`"stageComplete": false`
-
-until the real process-boundary proofs are done.
-
-## Toolchain
-
-- AGP 9.3.0
-- Gradle 9.5.0
-- JDK 17
-- compileSdk / targetSdk 36
+- compileSdk 36
+- targetSdk 36
 - minSdk 26
-- Build Tools 36.0.0
 - NDK 28.2.13676358
 - CMake 3.22.1
-- C++17
-- `-Wall -Wextra -Wpedantic -Werror`
+- Java 17
+- ARM64 primary
+- ARM32 (`armeabi-v7a`) compatibility
 
-## ABIs
+## Host proofs
 
-- `arm64-v8a`
-- `armeabi-v7a`
+`host/codynex_lr0_host` checks:
 
-## Evidence artifact
+- external Program A/B files;
+- state-preserving +1 -> +5 replacement;
+- 12 malformed candidate rejections;
+- incompatible persistent schema rejection;
+- checked I64 overflow rollback.
 
-A passing run uploads:
+`host/codynex_lr0_recovery` checks:
 
-- `codynex_n2_host`
-- `codynex-n2-debug.apk`
-- `libcodynex_n2-arm64-v8a.so`
-- `libcodynex_n2-armeabi-v7a.so`
-- `host-results.json`
-- `elf-arm64.txt`
-- `elf-arm32.txt`
-- `apk-contents.txt`
-- `SHA256SUMS.txt`
+- explicit persistent-state export;
+- recovery into a fresh runtime object;
+- continued execution after recovery;
+- second restart;
+- corruption of the newest journal slot;
+- fallback to the previous committed slot.
 
-The SHA manifest binds the host binary, APK, both packaged native libraries and
-validated host result.
+## Device proof
 
-Retention: 7 days.
+The APK lab exposes:
 
-## Security / scope
+- editable CXE1 assembly;
+- compile to external `candidate.cxe`;
+- activate existing external candidate;
+- generic function invocation;
+- generic state inspection;
+- candidate-integrity corruption;
+- runtime snapshot;
+- explicit recovery reopen;
+- real process kill for cold-restart proof.
 
-Workflow permission is read-only:
-
-```yaml
-permissions:
-  contents: read
-```
-
-No signing secrets are required for this disposable debug proof.
-
-This repository is build/test infrastructure, not Codynex architecture.
+A successful LR0 device proof requires the APK to remain unchanged while external hosted behavior changes.

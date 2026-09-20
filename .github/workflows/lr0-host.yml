@@ -1,54 +1,76 @@
-name: Codynex LR0 Live Runtime Host Proof
+name: Codynex LR0 Temporary Builder
 
 on:
   push:
     branches:
       - main
-    paths:
-      - "lr0/**"
-      - ".github/workflows/lr0-host.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: codynex-lr0-host-${{ github.ref }}
+  group: codynex-lr0-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lr0-host:
+  build-and-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+
+    env:
+      GRADLE_VERSION: "9.5.0"
+      ANDROID_PLATFORM: "android-36"
+      ANDROID_BUILD_TOOLS: "36.0.0"
+      ANDROID_NDK: "28.2.13676358"
+      ANDROID_CMAKE: "3.22.1"
+      APK_PATH: "app/build/outputs/apk/debug/app-debug.apk"
 
     steps:
       - name: Checkout temporary builder
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "${{ env.GRADLE_VERSION }}"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install pinned Android toolchain
+        shell: bash
+        run: |
+          sdkmanager --install \
+            "platforms;${ANDROID_PLATFORM}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}" \
+            "ndk;${ANDROID_NDK}" \
+            "cmake;${ANDROID_CMAKE}"
 
       - name: Create evidence directory
         shell: bash
         run: mkdir -p artifacts/lr0
 
-      - name: Configure LR0 host proof
+      - name: Configure host proofs
         shell: bash
-        run: >
-          cmake
-          -S lr0/host
-          -B lr0/host/build
-          -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S host -B host/build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build LR0 host proof
+      - name: Build host proofs
         shell: bash
-        run: >
-          cmake
-          --build lr0/host/build
-          --config Release
-          --parallel 2
+        run: cmake --build host/build --config Release --parallel 2
 
-      - name: Run LR0 live-runtime gate
+      - name: Run live-runtime core proof
         shell: bash
         run: |
-          lr0/host/build/codynex_lr0_host             | tee artifacts/lr0/host-results.json
+          ./host/build/codynex_lr0_host | tee artifacts/lr0/host-results.json
           jq -e '.pass == true' artifacts/lr0/host-results.json > /dev/null
           jq -e '.checks.runs == .checks.passed' artifacts/lr0/host-results.json > /dev/null
           jq -e '.externalPrograms.programAFile == true' artifacts/lr0/host-results.json > /dev/null
@@ -60,23 +82,94 @@ jobs:
           jq -e '.invalidCandidates.activeProgramPreserved == true' artifacts/lr0/host-results.json > /dev/null
           jq -e '.incompatibleSchemaRejected == true' artifacts/lr0/host-results.json > /dev/null
           jq -e '.overflowStateRollback == true' artifacts/lr0/host-results.json > /dev/null
-          jq -e '.androidProofRequired == true' artifacts/lr0/host-results.json > /dev/null
 
-      - name: Capture source provenance
+      - name: Run recovery-store proof
         shell: bash
         run: |
-          sha256sum             lr0/app/src/main/cpp/cxe_format.h             lr0/app/src/main/cpp/cxe_format.cpp             lr0/app/src/main/cpp/lr0_runtime.h             lr0/app/src/main/cpp/lr0_runtime.cpp             lr0/host/cxe_builder.h             lr0/host/cxe_builder.cpp             lr0/host/main.cpp             lr0/host/CMakeLists.txt             > artifacts/lr0/SOURCE_SHA256SUMS.txt
+          ./host/build/codynex_lr0_recovery | tee artifacts/lr0/recovery-results.json
+          jq -e '.pass == true' artifacts/lr0/recovery-results.json > /dev/null
+          jq -e '.initialLiveBehavior == true' artifacts/lr0/recovery-results.json > /dev/null
+          jq -e '.firstCommit == true' artifacts/lr0/recovery-results.json > /dev/null
+          jq -e '.firstRecovery == true' artifacts/lr0/recovery-results.json > /dev/null
+          jq -e '.secondCommit == true' artifacts/lr0/recovery-results.json > /dev/null
+          jq -e '.secondRecovery == true' artifacts/lr0/recovery-results.json > /dev/null
+          jq -e '.fallbackRecovery == true' artifacts/lr0/recovery-results.json > /dev/null
 
-      - name: Capture executable evidence
+      - name: Assemble Android debug APK
+        shell: bash
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Verify APK exists
+        shell: bash
+        run: test -s "${APK_PATH}"
+
+      - name: Verify ARM64 runtime library
+        shell: bash
+        run: unzip -l "${APK_PATH}" | grep -F "lib/arm64-v8a/libcodynex_lr0.so"
+
+      - name: Verify ARM32 runtime library
+        shell: bash
+        run: unzip -l "${APK_PATH}" | grep -F "lib/armeabi-v7a/libcodynex_lr0.so"
+
+      - name: Extract packaged native libraries
         shell: bash
         run: |
-          cp lr0/host/build/codynex_lr0_host artifacts/lr0/
-          sha256sum             artifacts/lr0/codynex_lr0_host             artifacts/lr0/host-results.json             > artifacts/lr0/EVIDENCE_SHA256SUMS.txt
+          unzip -p "${APK_PATH}" lib/arm64-v8a/libcodynex_lr0.so \
+            > artifacts/lr0/libcodynex_lr0-arm64-v8a.so
+          unzip -p "${APK_PATH}" lib/armeabi-v7a/libcodynex_lr0.so \
+            > artifacts/lr0/libcodynex_lr0-armeabi-v7a.so
 
-      - name: Upload LR0 host evidence
+      - name: Verify native ELF architectures
+        shell: bash
+        run: |
+          readelf -h artifacts/lr0/libcodynex_lr0-arm64-v8a.so \
+            | tee artifacts/lr0/elf-arm64.txt
+          readelf -h artifacts/lr0/libcodynex_lr0-armeabi-v7a.so \
+            | tee artifacts/lr0/elf-arm32.txt
+          grep -Eq 'Class:.*ELF64' artifacts/lr0/elf-arm64.txt
+          grep -Eq 'Machine:.*AArch64' artifacts/lr0/elf-arm64.txt
+          grep -Eq 'Class:.*ELF32' artifacts/lr0/elf-arm32.txt
+          grep -Eq 'Machine:.*ARM' artifacts/lr0/elf-arm32.txt
+
+      - name: Capture APK and source provenance
+        shell: bash
+        run: |
+          cp "${APK_PATH}" artifacts/lr0/codynex-lr0-debug.apk
+          unzip -l "${APK_PATH}" > artifacts/lr0/apk-contents.txt
+          sha256sum \
+            app/src/main/cpp/cxe_format.h \
+            app/src/main/cpp/cxe_format.cpp \
+            app/src/main/cpp/lr0_runtime.h \
+            app/src/main/cpp/lr0_runtime.cpp \
+            app/src/main/cpp/lr0_store.h \
+            app/src/main/cpp/lr0_store.cpp \
+            app/src/main/cpp/jni_bridge.cpp \
+            app/src/main/java/com/codynex/lr0lab/CxeAssembler.kt \
+            app/src/main/java/com/codynex/lr0lab/MainActivity.kt \
+            host/main.cpp \
+            host/recovery_main.cpp \
+            > artifacts/lr0/SOURCE_SHA256SUMS.txt
+
+      - name: Capture evidence hashes
+        shell: bash
+        run: |
+          cp host/build/codynex_lr0_host artifacts/lr0/
+          cp host/build/codynex_lr0_recovery artifacts/lr0/
+          sha256sum \
+            artifacts/lr0/codynex_lr0_host \
+            artifacts/lr0/codynex_lr0_recovery \
+            artifacts/lr0/codynex-lr0-debug.apk \
+            artifacts/lr0/libcodynex_lr0-arm64-v8a.so \
+            artifacts/lr0/libcodynex_lr0-armeabi-v7a.so \
+            artifacts/lr0/host-results.json \
+            artifacts/lr0/recovery-results.json \
+            > artifacts/lr0/EVIDENCE_SHA256SUMS.txt
+          cat artifacts/lr0/EVIDENCE_SHA256SUMS.txt
+
+      - name: Upload LR0 evidence bundle
         uses: actions/upload-artifact@v4
         with:
-          name: codynex-lr0-host-${{ github.run_number }}
+          name: codynex-lr0-${{ github.run_number }}
           path: artifacts/lr0/
           if-no-files-found: error
           retention-days: 7

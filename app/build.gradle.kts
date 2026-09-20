@@ -3,16 +3,16 @@ plugins {
 }
 
 android {
-    namespace = "com.codynex.n2lab"
+    namespace = "com.codynex.lr0lab"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
 
     defaultConfig {
-        applicationId = "com.codynex.n2lab"
+        applicationId = "com.codynex.lr0lab"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.3.0-n2"
+        versionName = "0.1.0-lr0"
 
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")

@@ -1,138 +1,71 @@
-# Tmpbuilder N2 Validation
+# LR0 Validation
 
-A CI run is valid only if every gate below passes.
+## CI gate
 
-## Host configure / compile
+The temporary GitHub builder must:
 
-CMake must configure and compile `codynex_n2_host` under:
+1. configure/build the host harness with `-Wall -Wextra -Wpedantic -Werror`;
+2. run `codynex_lr0_host` and require `pass=true`;
+3. require all 12 malformed candidates rejected;
+4. require state-preserving behavior replacement;
+5. require overflow rollback;
+6. run `codynex_lr0_recovery` and require `pass=true`;
+7. build the Android debug APK;
+8. verify `libcodynex_lr0.so` exists for `arm64-v8a`;
+9. verify `libcodynex_lr0.so` exists for `armeabi-v7a`;
+10. verify ELF64/AArch64 and ELF32/ARM architecture metadata;
+11. archive APK/native libraries/host JSON/SHA-256 evidence.
 
-- C++17
-- `-Wall`
-- `-Wextra`
-- `-Wpedantic`
-- `-Werror`
+## Device gate
 
-Compiler strictness may not be weakened.
+Start from cleared LR0 app data.
 
-## Validated host N2 suite
+### Program A
 
-The executable must:
+1. open app;
+2. load Program A template;
+3. compile to external `candidate.cxe`;
+4. activate;
+5. call function 0 three times;
+6. verify state 0 is 3.
 
-- exit 0;
-- emit valid JSON;
-- report `"pass": true`;
-- report `"stageComplete": false`.
+### Live replacement
 
-The base suite must pass:
+1. load Program B template;
+2. compile to the same external candidate path;
+3. activate;
+4. verify state remains 3;
+5. call function 0;
+6. verify state becomes 8;
+7. APK rebuild/reinstall count since initial install remains zero.
 
-- graph propagation: 6/6;
-- graph repair: 6/6;
-- tape propagation: 6/6;
-- tape repair: 6/6;
-- graph/tape substitution: 6/6;
-- graph -> tape reconstruction: 6/6;
-- tape -> graph reconstruction: 6/6;
-- evidence-erasure behavior: 6/6;
-- checkpoint graph -> tape: 6/6;
-- checkpoint tape -> graph: 6/6;
-- checkpoint corruption rejection: 12/12;
-- checkpoint decoy rejection: 12/12;
-- generated machinery serialized bytes: 0;
-- authority serialized bytes: 0;
-- resource gates: pass.
+### Invalid update survival
 
-The mandatory hardening layer must also pass:
+1. corrupt candidate integrity;
+2. attempt activation;
+3. require rejection;
+4. require active program still valid;
+5. require state remains 8;
+6. call function 0;
+7. require state becomes 13.
 
-- N1 dense-equivalent parity: 12/12;
-- N1 frontier-equivalent parity: 12/12;
-- dense controller-loss preservation: 6/6;
-- frontier controller-loss preservation: 6/6;
-- authority after graph reconstruction: 6/6;
-- authority after tape reconstruction: 6/6;
-- oversized checkpoint rejection: true;
-- primitive catalogue authority isolation: true.
+### Cold restart
 
-The workflow explicitly checks these JSON fields with `jq`; a base-suite-only green result is insufficient.
+1. use the process-kill button;
+2. reopen the app;
+3. require recovery succeeds;
+4. require state 0 remains 13;
+5. call function 0;
+6. require state becomes 18.
 
-## Checkpoint hardening
+### Anti-cheat
 
-The native checkpoint boundary must:
+Fail if:
 
-- reject files larger than 8192 bytes before allocation/decode;
-- reject invalid schema/version/integrity;
-- reject unknown flag bits;
-- require exactly one pinned source at index 0;
-- require source rank `kRootRank`;
-- reject ordinary replicas using root rank;
-- serialize zero generated-machinery bytes;
-- serialize zero authority-secret bytes.
-
-Invalid tape opcodes must fail closed.
-
-## Android build
-
-Pinned:
-
-- JDK 17
-- Gradle 9.5.0
-- AGP 9.3.0
-- compileSdk / targetSdk 36
-- minSdk 26
-- Build Tools 36.0.0
-- NDK 28.2.13676358
-- CMake 3.22.1
-
-`:app:assembleDebug` must succeed.
-
-## ABI packaging
-
-APK must contain:
-
-- `lib/arm64-v8a/libcodynex_n2.so`
-- `lib/armeabi-v7a/libcodynex_n2.so`
-
-ARM32 may not be dropped to make the build green.
-
-## ELF verification
-
-- ARM64 => AArch64
-- ARM32 => ELF32 + ARM
-
-## Evidence bundle
-
-Must contain:
-
-- `codynex_n2_host`
-- N2 debug APK
-- both extracted native libraries
-- validated host JSON
-- ELF reports
-- APK contents
-- SHA-256 manifest
-
-The SHA manifest must include the host executable as well as the APK, native libraries and host result.
-
-## Failure policy
-
-Do not:
-
-- skip host tests;
-- bypass the hardening wrapper;
-- weaken `-Werror`;
-- remove ARM32;
-- serialize generated machinery to satisfy checkpoint tests;
-- persist source authority;
-- weaken checkpoint bounds/invariant checks;
-- silently map invalid plan opcodes to a valid primitive;
-- change `stageComplete` to true in CI;
-- claim N2 complete from host/APK success alone.
-
-## Real-device boundary
-
-After green CI, the APK must still prove:
-
-- validated Android in-process suite PASS;
-- Graph -> Tape real process restart PASS;
-- Tape -> Graph real process restart PASS.
-
-Until those are recorded, N2 remains ACTIVE.
+- native runtime embeds Program A/B recipes;
+- lab bypasses external file loading;
+- candidate mutates active state before validation;
+- state survives only through stale native objects;
+- restart serializes interpreter stack/execution scratch;
+- behavior edit requires another APK build;
+- ARM32 packaging is missing.

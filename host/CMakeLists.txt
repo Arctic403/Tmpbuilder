@@ -1,38 +1,51 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(codynex_n2_host LANGUAGES CXX)
+project(codynex_lr0_host LANGUAGES CXX)
+
+set(
+    LR0_COMMON_SOURCES
+    cxe_builder.cpp
+    ../app/src/main/cpp/cxe_format.cpp
+    ../app/src/main/cpp/lr0_runtime.cpp
+    ../app/src/main/cpp/lr0_store.cpp
+)
 
 add_executable(
-    codynex_n2_host
+    codynex_lr0_host
     main.cpp
-    ../app/src/main/cpp/n2_core.cpp
-    ../app/src/main/cpp/n2_primitives.cpp
-    ../app/src/main/cpp/n2_plan_common.cpp
-    ../app/src/main/cpp/n2_graph_plan.cpp
-    ../app/src/main/cpp/n2_tape_plan.cpp
-    ../app/src/main/cpp/n2_generator.cpp
-    ../app/src/main/cpp/n2_checkpoint.cpp
-    ../app/src/main/cpp/n2_suite.cpp
-    ../app/src/main/cpp/n2_validation.cpp
+    ${LR0_COMMON_SOURCES}
 )
 
-target_include_directories(
-    codynex_n2_host
-    PRIVATE
-    ../app/src/main/cpp
+add_executable(
+    codynex_lr0_recovery
+    recovery_main.cpp
+    ${LR0_COMMON_SOURCES}
 )
 
-target_compile_features(
-    codynex_n2_host
-    PRIVATE
-    cxx_std_17
+foreach(
+    target
+    codynex_lr0_host
+    codynex_lr0_recovery
 )
+    target_include_directories(
+        ${target}
+        PRIVATE
+        .
+        ../app/src/main/cpp
+    )
 
-target_compile_options(
-    codynex_n2_host
-    PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Werror
-)
+    target_compile_features(
+        ${target}
+        PRIVATE
+        cxx_std_17
+    )
+
+    target_compile_options(
+        ${target}
+        PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Werror
+    )
+endforeach()

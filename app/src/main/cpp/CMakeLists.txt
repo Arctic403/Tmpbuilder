@@ -1,30 +1,24 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-project(codynex_n2 LANGUAGES CXX)
+project(codynex_lr0 LANGUAGES CXX)
 
 add_library(
-    codynex_n2
+    codynex_lr0
     SHARED
-    n2_core.cpp
-    n2_primitives.cpp
-    n2_plan_common.cpp
-    n2_graph_plan.cpp
-    n2_tape_plan.cpp
-    n2_generator.cpp
-    n2_checkpoint.cpp
-    n2_suite.cpp
-    n2_validation.cpp
+    cxe_format.cpp
+    lr0_runtime.cpp
+    lr0_store.cpp
     jni_bridge.cpp
 )
 
 target_compile_features(
-    codynex_n2
+    codynex_lr0
     PRIVATE
     cxx_std_17
 )
 
 target_compile_options(
-    codynex_n2
+    codynex_lr0
     PRIVATE
     -Wall
     -Wextra

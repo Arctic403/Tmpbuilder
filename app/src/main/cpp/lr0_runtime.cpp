@@ -494,6 +494,134 @@ bool LiveRuntime::readState(
     return true;
 }
 
+bool LiveRuntime::exportPersistentState(
+    PersistentStateImage& out,
+    std::string& reason
+) const {
+    out = PersistentStateImage{};
+
+    if (!hasActiveProgram_) {
+        reason = "no-active-program";
+        return false;
+    }
+
+    PersistentStateImage candidate;
+    candidate.programHash = activeProgram_.executableHash;
+    candidate.schemaFingerprint =
+        activeProgram_.schemaFingerprint;
+
+    try {
+        candidate.entries.reserve(
+            countPersistentStates(activeProgram_)
+        );
+    } catch (const std::bad_alloc&) {
+        reason = "persistent-export-allocation-failed";
+        return false;
+    }
+
+    for (const StateDecl& state : activeProgram_.states) {
+        if (!state.persistent) {
+            continue;
+        }
+
+        const std::size_t id =
+            static_cast<std::size_t>(state.id);
+
+        if (id >= stateValues_.size()) {
+            reason = "persistent-export-state-missing";
+            return false;
+        }
+
+        PersistentStateEntry entry;
+        entry.id = state.id;
+        entry.type = state.type;
+        entry.value = stateValues_[id];
+        candidate.entries.push_back(entry);
+    }
+
+    out = std::move(candidate);
+    reason = "ok";
+    return true;
+}
+
+bool LiveRuntime::restorePersistentState(
+    const PersistentStateImage& image,
+    std::string& reason
+) {
+    if (!hasActiveProgram_) {
+        reason = "no-active-program";
+        return false;
+    }
+
+    if (image.programHash != activeProgram_.executableHash) {
+        reason = "persistent-program-hash-mismatch";
+        return false;
+    }
+
+    if (
+        image.schemaFingerprint !=
+        activeProgram_.schemaFingerprint
+    ) {
+        reason = "persistent-schema-fingerprint-mismatch";
+        return false;
+    }
+
+    const std::size_t expectedPersistent =
+        countPersistentStates(activeProgram_);
+
+    if (image.entries.size() != expectedPersistent) {
+        reason = "persistent-entry-count-mismatch";
+        return false;
+    }
+
+    std::vector<std::int64_t> restored;
+
+    try {
+        restored = stateValues_;
+    } catch (const std::bad_alloc&) {
+        reason = "persistent-restore-allocation-failed";
+        return false;
+    }
+
+    std::size_t entryIndex = 0U;
+
+    for (const StateDecl& state : activeProgram_.states) {
+        if (!state.persistent) {
+            continue;
+        }
+
+        if (entryIndex >= image.entries.size()) {
+            reason = "persistent-entry-missing";
+            return false;
+        }
+
+        const PersistentStateEntry& entry =
+            image.entries[entryIndex++];
+
+        if (
+            entry.id != state.id ||
+            entry.type != state.type
+        ) {
+            reason = "persistent-entry-schema-mismatch";
+            return false;
+        }
+
+        const std::size_t id =
+            static_cast<std::size_t>(state.id);
+
+        if (id >= restored.size()) {
+            reason = "persistent-restore-state-missing";
+            return false;
+        }
+
+        restored[id] = entry.value;
+    }
+
+    stateValues_ = std::move(restored);
+    reason = "ok";
+    return true;
+}
+
 bool LiveRuntime::hasActiveProgram() const {
     return hasActiveProgram_;
 }
