@@ -1,0 +1,82 @@
+name: Codynex LR0 Live Runtime Host Proof
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "lr0/**"
+      - ".github/workflows/lr0-host.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codynex-lr0-host-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lr0-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout temporary builder
+        uses: actions/checkout@v5
+
+      - name: Create evidence directory
+        shell: bash
+        run: mkdir -p artifacts/lr0
+
+      - name: Configure LR0 host proof
+        shell: bash
+        run: >
+          cmake
+          -S lr0/host
+          -B lr0/host/build
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build LR0 host proof
+        shell: bash
+        run: >
+          cmake
+          --build lr0/host/build
+          --config Release
+          --parallel 2
+
+      - name: Run LR0 live-runtime gate
+        shell: bash
+        run: |
+          lr0/host/build/codynex_lr0_host             | tee artifacts/lr0/host-results.json
+          jq -e '.pass == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.checks.runs == .checks.passed' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.externalPrograms.programAFile == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.externalPrograms.programBFile == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.replacement.statePreserved == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.replacement.behaviorChanged == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.invalidCandidates.runs == 12' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.invalidCandidates.rejected == 12' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.invalidCandidates.activeProgramPreserved == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.incompatibleSchemaRejected == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.overflowStateRollback == true' artifacts/lr0/host-results.json > /dev/null
+          jq -e '.androidProofRequired == true' artifacts/lr0/host-results.json > /dev/null
+
+      - name: Capture source provenance
+        shell: bash
+        run: |
+          sha256sum             lr0/app/src/main/cpp/cxe_format.h             lr0/app/src/main/cpp/cxe_format.cpp             lr0/app/src/main/cpp/lr0_runtime.h             lr0/app/src/main/cpp/lr0_runtime.cpp             lr0/host/cxe_builder.h             lr0/host/cxe_builder.cpp             lr0/host/main.cpp             lr0/host/CMakeLists.txt             > artifacts/lr0/SOURCE_SHA256SUMS.txt
+
+      - name: Capture executable evidence
+        shell: bash
+        run: |
+          cp lr0/host/build/codynex_lr0_host artifacts/lr0/
+          sha256sum             artifacts/lr0/codynex_lr0_host             artifacts/lr0/host-results.json             > artifacts/lr0/EVIDENCE_SHA256SUMS.txt
+
+      - name: Upload LR0 host evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: codynex-lr0-host-${{ github.run_number }}
+          path: artifacts/lr0/
+          if-no-files-found: error
+          retention-days: 7
