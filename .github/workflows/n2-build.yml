@@ -67,12 +67,24 @@ jobs:
         shell: bash
         run: cmake --build host/build --config Release --parallel 2
 
-      - name: Run host-native N2 suite
+      - name: Run validated host-native N2 suite
         shell: bash
         run: |
           ./host/build/codynex_n2_host | tee artifacts/host-results.json
           jq -e '.pass == true' artifacts/host-results.json > /dev/null
           jq -e '.stageComplete == false' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.n1DenseParity.runs == 12 and .hardening.n1DenseParity.passed == 12' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.n1FrontierParity.runs == 12 and .hardening.n1FrontierParity.passed == 12' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.controllerLossDense.runs == 6 and .hardening.controllerLossDense.passed == 6' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.controllerLossFrontier.runs == 6 and .hardening.controllerLossFrontier.passed == 6' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.authorityAfterGraph.runs == 6 and .hardening.authorityAfterGraph.passed == 6' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.authorityAfterTape.runs == 6 and .hardening.authorityAfterTape.passed == 6' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.oversizedCheckpointRejected == true' artifacts/host-results.json > /dev/null
+          jq -e '.hardening.primitiveCatalogueAuthorityClean == true' artifacts/host-results.json > /dev/null
+
+      - name: Capture host binary evidence
+        shell: bash
+        run: cp host/build/codynex_n2_host artifacts/codynex_n2_host
 
       - name: Assemble Android debug APK
         shell: bash
@@ -119,6 +131,7 @@ jobs:
         shell: bash
         run: |
           sha256sum \
+            artifacts/codynex_n2_host \
             artifacts/codynex-n2-debug.apk \
             artifacts/libcodynex_n2-arm64-v8a.so \
             artifacts/libcodynex_n2-armeabi-v7a.so \

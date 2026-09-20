@@ -146,6 +146,40 @@ bool readU64(
     return true;
 }
 
+bool validateReplicaSet(
+    const std::vector<Replica>& replicas
+) {
+    if (replicas.empty()) {
+        return false;
+    }
+
+    std::size_t pinnedCount = 0U;
+
+    for (std::size_t i = 0U; i < replicas.size(); ++i) {
+        const Replica& replica = replicas[i];
+
+        if (replica.rank < 0 || replica.rank > kRootRank) {
+            return false;
+        }
+
+        if (replica.pinned) {
+            ++pinnedCount;
+
+            if (
+                i != 0U ||
+                replica.rank != kRootRank ||
+                replica.conflict
+            ) {
+                return false;
+            }
+        } else if (replica.rank >= kRootRank) {
+            return false;
+        }
+    }
+
+    return pinnedCount == 1U && replicas[0].pinned;
+}
+
 }  // namespace
 
 std::uint64_t checkpointSchemaHash() {
@@ -163,8 +197,6 @@ std::vector<std::uint8_t> encodeCheckpoint(
     const Mesh& mesh,
     CheckpointLedger* ledger
 ) {
-    std::vector<std::uint8_t> bytes;
-
     const std::size_t expected =
         4U +
         4U +
@@ -175,6 +207,15 @@ std::vector<std::uint8_t> encodeCheckpoint(
         mesh.size() * kReplicaBytes +
         8U;
 
+    if (expected > kMaxCheckpointBytes) {
+        if (ledger != nullptr) {
+            *ledger = CheckpointLedger{};
+        }
+
+        return {};
+    }
+
+    std::vector<std::uint8_t> bytes;
     bytes.reserve(expected);
 
     bytes.push_back('N');
@@ -247,6 +288,11 @@ DecodedCheckpoint decodeCheckpoint(
         4U + 4U + 8U + 4U + 4U + 4U;
 
     constexpr std::size_t kTrailerBytes = 8U;
+
+    if (bytes.size() > kMaxCheckpointBytes) {
+        decoded.reason = "checkpoint-too-large";
+        return decoded;
+    }
 
     if (bytes.size() < kHeaderBytes + kTrailerBytes) {
         decoded.reason = "checkpoint-too-small";
@@ -347,7 +393,10 @@ DecodedCheckpoint decodeCheckpoint(
         static_cast<std::size_t>(count) * kReplicaBytes +
         kTrailerBytes;
 
-    if (bytes.size() != expectedSize) {
+    if (
+        expectedSize > kMaxCheckpointBytes ||
+        bytes.size() != expectedSize
+    ) {
         decoded.reason = "checkpoint-size-mismatch";
         return decoded;
     }
@@ -369,6 +418,12 @@ DecodedCheckpoint decodeCheckpoint(
             return decoded;
         }
 
+        if ((flags & ~0x03U) != 0U) {
+            decoded.reason = "checkpoint-flags-invalid";
+            decoded.replicas.clear();
+            return decoded;
+        }
+
         replica.pinned = (flags & 0x01U) != 0U;
         replica.conflict = (flags & 0x02U) != 0U;
 
@@ -377,6 +432,12 @@ DecodedCheckpoint decodeCheckpoint(
 
     if (offset != trailerOffset) {
         decoded.reason = "checkpoint-payload-mismatch";
+        decoded.replicas.clear();
+        return decoded;
+    }
+
+    if (!validateReplicaSet(decoded.replicas)) {
+        decoded.reason = "checkpoint-substrate-invalid";
         decoded.replicas.clear();
         return decoded;
     }
@@ -394,7 +455,10 @@ bool restoreCheckpoint(
     const DecodedCheckpoint& decoded,
     Mesh& mesh
 ) {
-    if (!decoded.ok) {
+    if (
+        !decoded.ok ||
+        !validateReplicaSet(decoded.replicas)
+    ) {
         return false;
     }
 
@@ -421,6 +485,13 @@ bool writeCheckpointFile(
     const std::string& path,
     const std::vector<std::uint8_t>& bytes
 ) {
+    if (
+        bytes.empty() ||
+        bytes.size() > kMaxCheckpointBytes
+    ) {
+        return false;
+    }
+
     std::ofstream stream(
         path,
         std::ios::binary |
@@ -454,7 +525,13 @@ std::vector<std::uint8_t> readCheckpointFile(
     stream.seekg(0, std::ios::end);
     const std::streamoff length = stream.tellg();
 
-    if (length <= 0) {
+    if (
+        length <= 0 ||
+        length >
+            static_cast<std::streamoff>(
+                kMaxCheckpointBytes
+            )
+    ) {
         return {};
     }
 

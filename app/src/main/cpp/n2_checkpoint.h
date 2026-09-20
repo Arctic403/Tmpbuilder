@@ -9,6 +9,8 @@
 
 namespace codynex::n2 {
 
+inline constexpr std::size_t kMaxCheckpointBytes = 8192U;
+
 struct CheckpointLedger {
     std::size_t checkpointBytes = 0U;
     std::size_t substrateSerializedBytes = 0U;

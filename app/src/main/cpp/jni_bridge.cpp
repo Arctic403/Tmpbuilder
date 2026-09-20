@@ -1,4 +1,5 @@
 #include "n2_suite.h"
+#include "n2_validation.h"
 
 #include <jni.h>
 
@@ -45,7 +46,7 @@ Java_com_codynex_n2lab_MainActivity_nativeRunAll(
 ) {
     return toJString(
         env,
-        codynex::n2::runHostAndInProcessSuite()
+        codynex::n2::runValidatedHostAndInProcessSuite()
     );
 }
 

@@ -14,7 +14,7 @@ CMake must configure and compile `codynex_n2_host` under:
 
 Compiler strictness may not be weakened.
 
-## Host N2 suite
+## Validated host N2 suite
 
 The executable must:
 
@@ -23,18 +23,51 @@ The executable must:
 - report `"pass": true`;
 - report `"stageComplete": false`.
 
-The host suite covers:
+The base suite must pass:
 
-- graph generation/execution;
-- tape generation/execution;
-- graph/tape substitution;
-- graph -> tape reconstruction;
-- tape -> graph reconstruction;
-- evidence-erasure fallback;
-- checkpoint cross-representation restore;
-- checkpoint corruption/decoy rejection;
-- authority isolation;
-- resource gates.
+- graph propagation: 6/6;
+- graph repair: 6/6;
+- tape propagation: 6/6;
+- tape repair: 6/6;
+- graph/tape substitution: 6/6;
+- graph -> tape reconstruction: 6/6;
+- tape -> graph reconstruction: 6/6;
+- evidence-erasure behavior: 6/6;
+- checkpoint graph -> tape: 6/6;
+- checkpoint tape -> graph: 6/6;
+- checkpoint corruption rejection: 12/12;
+- checkpoint decoy rejection: 12/12;
+- generated machinery serialized bytes: 0;
+- authority serialized bytes: 0;
+- resource gates: pass.
+
+The mandatory hardening layer must also pass:
+
+- N1 dense-equivalent parity: 12/12;
+- N1 frontier-equivalent parity: 12/12;
+- dense controller-loss preservation: 6/6;
+- frontier controller-loss preservation: 6/6;
+- authority after graph reconstruction: 6/6;
+- authority after tape reconstruction: 6/6;
+- oversized checkpoint rejection: true;
+- primitive catalogue authority isolation: true.
+
+The workflow explicitly checks these JSON fields with `jq`; a base-suite-only green result is insufficient.
+
+## Checkpoint hardening
+
+The native checkpoint boundary must:
+
+- reject files larger than 8192 bytes before allocation/decode;
+- reject invalid schema/version/integrity;
+- reject unknown flag bits;
+- require exactly one pinned source at index 0;
+- require source rank `kRootRank`;
+- reject ordinary replicas using root rank;
+- serialize zero generated-machinery bytes;
+- serialize zero authority-secret bytes.
+
+Invalid tape opcodes must fail closed.
 
 ## Android build
 
@@ -69,22 +102,28 @@ ARM32 may not be dropped to make the build green.
 
 Must contain:
 
+- `codynex_n2_host`
 - N2 debug APK
 - both extracted native libraries
-- host JSON
+- validated host JSON
 - ELF reports
 - APK contents
 - SHA-256 manifest
+
+The SHA manifest must include the host executable as well as the APK, native libraries and host result.
 
 ## Failure policy
 
 Do not:
 
 - skip host tests;
+- bypass the hardening wrapper;
 - weaken `-Werror`;
 - remove ARM32;
 - serialize generated machinery to satisfy checkpoint tests;
 - persist source authority;
+- weaken checkpoint bounds/invariant checks;
+- silently map invalid plan opcodes to a valid primitive;
 - change `stageComplete` to true in CI;
 - claim N2 complete from host/APK success alone.
 
@@ -92,7 +131,7 @@ Do not:
 
 After green CI, the APK must still prove:
 
-- Android in-process suite PASS;
+- validated Android in-process suite PASS;
 - Graph -> Tape real process restart PASS;
 - Tape -> Graph real process restart PASS.
 

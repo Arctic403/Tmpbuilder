@@ -13,6 +13,7 @@ add_library(
     n2_generator.cpp
     n2_checkpoint.cpp
     n2_suite.cpp
+    n2_validation.cpp
     jni_bridge.cpp
 )
 

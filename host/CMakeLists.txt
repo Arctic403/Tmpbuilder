@@ -13,6 +13,7 @@ add_executable(
     ../app/src/main/cpp/n2_generator.cpp
     ../app/src/main/cpp/n2_checkpoint.cpp
     ../app/src/main/cpp/n2_suite.cpp
+    ../app/src/main/cpp/n2_validation.cpp
 )
 
 target_include_directories(

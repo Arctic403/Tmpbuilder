@@ -7,16 +7,22 @@ std::uint8_t encodeOpcode(PrimitiveId id) {
     return static_cast<std::uint8_t>(id);
 }
 
-PrimitiveId decodeOpcode(std::uint8_t opcode) {
+bool decodeOpcode(
+    std::uint8_t opcode,
+    PrimitiveId& out
+) {
     switch (opcode) {
         case static_cast<std::uint8_t>(PrimitiveId::SweepOnce):
-            return PrimitiveId::SweepOnce;
+            out = PrimitiveId::SweepOnce;
+            return true;
         case static_cast<std::uint8_t>(PrimitiveId::SeedActionable):
-            return PrimitiveId::SeedActionable;
+            out = PrimitiveId::SeedActionable;
+            return true;
         case static_cast<std::uint8_t>(PrimitiveId::DrainLocalWork):
-            return PrimitiveId::DrainLocalWork;
+            out = PrimitiveId::DrainLocalWork;
+            return true;
         default:
-            return PrimitiveId::SweepOnce;
+            return false;
     }
 }
 
@@ -85,8 +91,15 @@ PlanExecutionResult TapePlan::execute(
             continue;
         }
 
-        const PrimitiveId primitive =
-            decodeOpcode(tape_[pc].opcode);
+        PrimitiveId primitive = PrimitiveId::SweepOnce;
+
+        if (!decodeOpcode(tape_[pc].opcode, primitive)) {
+            result.pass = false;
+            result.cycles = completedCycles;
+            result.finalSignature = mesh.signature();
+            executor.destroyGeneratedScratch();
+            return result;
+        }
 
         const PrimitiveStepResult step = executor.execute(
             primitive,
