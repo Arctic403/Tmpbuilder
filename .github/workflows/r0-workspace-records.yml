@@ -1,0 +1,75 @@
+name: Codynex R0.1 Workspace Records Exact Lane
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "r0/workspace_records/**"
+      - ".github/workflows/r0-workspace-records.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codynex-r0-workspace-records-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout temporary builder
+        uses: actions/checkout@v5
+
+      - name: Create evidence directory
+        shell: bash
+        run: mkdir -p artifacts/r0-workspace-records
+
+      - name: Configure exact-lane host test
+        shell: bash
+        run: >
+          cmake
+          -S r0/workspace_records/host
+          -B r0/workspace_records/host/build
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build exact-lane host test
+        shell: bash
+        run: >
+          cmake
+          --build r0/workspace_records/host/build
+          --config Release
+          --parallel 2
+
+      - name: Run exact identity gate
+        shell: bash
+        run: |
+          r0/workspace_records/host/build/codynex_r0_workspace_records_host             | tee artifacts/r0-workspace-records/exact-results.json
+          jq -e '.pass == true'             artifacts/r0-workspace-records/exact-results.json > /dev/null
+          jq -e '.tests.runs == 6 and .tests.passed == 6'             artifacts/r0-workspace-records/exact-results.json > /dev/null
+          jq -e '.falseExact == 0'             artifacts/r0-workspace-records/exact-results.json > /dev/null
+          jq -e '.duplicateRenameConsumption == 0'             artifacts/r0-workspace-records/exact-results.json > /dev/null
+          jq -e '.riftOsMutationExpected == 0'             artifacts/r0-workspace-records/exact-results.json > /dev/null
+
+      - name: Capture source provenance
+        shell: bash
+        run: |
+          sha256sum             r0/workspace_records/include/r0_limits.h             r0/workspace_records/include/r0_types.h             r0/workspace_records/include/r0_identity.h             r0/workspace_records/src/r0_identity.cpp             r0/workspace_records/host/main.cpp             > artifacts/r0-workspace-records/SOURCE_SHA256SUMS.txt
+
+      - name: Capture executable evidence
+        shell: bash
+        run: |
+          cp             r0/workspace_records/host/build/codynex_r0_workspace_records_host             artifacts/r0-workspace-records/
+          sha256sum             artifacts/r0-workspace-records/codynex_r0_workspace_records_host             artifacts/r0-workspace-records/exact-results.json             > artifacts/r0-workspace-records/EVIDENCE_SHA256SUMS.txt
+
+      - name: Upload R0.1 exact-lane evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: codynex-r0-workspace-records-exact-${{ github.run_number }}
+          path: artifacts/r0-workspace-records/
+          if-no-files-found: error
+          retention-days: 7
