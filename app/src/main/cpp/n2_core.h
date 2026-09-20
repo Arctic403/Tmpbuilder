@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace codynex::n1 {
+namespace codynex::n2 {
 
 inline constexpr std::int32_t kRootRank = 32767;
 inline constexpr double kAgreementGate = 0.99;
@@ -183,4 +183,4 @@ BaselineResult baselineBroadcast(
     const BaselineController& controller
 );
 
-}  // namespace codynex::n1
+}  // namespace codynex::n2

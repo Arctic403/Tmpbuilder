@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Codynex-N0-Native-Lab"
+rootProject.name = "Codynex-N2-Self-Reconstruction-Lab"
 include(":app")

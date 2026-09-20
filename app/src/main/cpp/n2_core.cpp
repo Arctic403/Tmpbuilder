@@ -1,10 +1,10 @@
-#include "n1_core.h"
+#include "n2_core.h"
 
 #include <algorithm>
 #include <chrono>
 #include <utility>
 
-namespace codynex::n1 {
+namespace codynex::n2 {
 
 Rng::Rng(std::uint32_t seed)
     : state_(seed == 0U ? 0x9e3779b9U : seed) {}
@@ -591,4 +591,4 @@ BaselineResult baselineBroadcast(
     return result;
 }
 
-}  // namespace codynex::n1
+}  // namespace codynex::n2

@@ -1,94 +1,99 @@
-# Tmpbuilder N1 Validation
+# Tmpbuilder N2 Validation
 
-A GitHub Actions run is valid only if every gate below passes.
+A CI run is valid only if every gate below passes.
 
-## 1. Host configure
+## Host configure / compile
 
-CMake must configure `host/` successfully.
+CMake must configure and compile `codynex_n2_host` under:
 
-## 2. Host compile
+- C++17
+- `-Wall`
+- `-Wextra`
+- `-Wpedantic`
+- `-Werror`
 
-The N1 host executable must compile under:
+Compiler strictness may not be weakened.
 
-- C++17;
-- `-Wall`;
-- `-Wextra`;
-- `-Wpedantic`;
-- `-Werror`.
+## Host N2 suite
 
-Do not weaken compiler strictness to obtain a green run.
-
-## 3. Host N1 suite
-
-`codynex_n1_host` must:
+The executable must:
 
 - exit 0;
 - emit valid JSON;
-- contain `"pass": true`.
+- report `"pass": true`;
+- report `"stageComplete": false`.
 
-The suite includes dense/frontier parity, replacement, rebuild, specialization,
-authority, controller-loss and resource gates.
+The host suite covers:
 
-## 4. Android build
+- graph generation/execution;
+- tape generation/execution;
+- graph/tape substitution;
+- graph -> tape reconstruction;
+- tape -> graph reconstruction;
+- evidence-erasure fallback;
+- checkpoint cross-representation restore;
+- checkpoint corruption/decoy rejection;
+- authority isolation;
+- resource gates.
 
-Pinned toolchain:
+## Android build
 
-- AGP 9.3.0;
-- Gradle 9.5.0;
-- JDK 17;
-- NDK 28.2.13676358;
-- CMake 3.22.1;
-- compileSdk/targetSdk 36;
-- minSdk 26.
+Pinned:
+
+- JDK 17
+- Gradle 9.5.0
+- AGP 9.3.0
+- compileSdk / targetSdk 36
+- minSdk 26
+- Build Tools 36.0.0
+- NDK 28.2.13676358
+- CMake 3.22.1
 
 `:app:assembleDebug` must succeed.
 
-## 5. ABI packaging
+## ABI packaging
 
 APK must contain:
 
-- `lib/arm64-v8a/libcodynex_n1.so`;
-- `lib/armeabi-v7a/libcodynex_n1.so`.
+- `lib/arm64-v8a/libcodynex_n2.so`
+- `lib/armeabi-v7a/libcodynex_n2.so`
 
-ARM32 may not be removed to make the build pass.
+ARM32 may not be dropped to make the build green.
 
-## 6. ELF verification
+## ELF verification
 
-- ARM64 library: AArch64;
-- ARM32 library: ELF32 + ARM.
+- ARM64 => AArch64
+- ARM32 => ELF32 + ARM
 
-## 7. Evidence
+## Evidence bundle
 
-The uploaded bundle must contain:
+Must contain:
 
-- N1 debug APK;
-- both extracted native libraries;
-- host N1 JSON;
-- ELF reports;
-- APK contents;
-- SHA-256 manifest.
+- N2 debug APK
+- both extracted native libraries
+- host JSON
+- ELF reports
+- APK contents
+- SHA-256 manifest
 
 ## Failure policy
 
-A failed gate remains failed.
-
 Do not:
 
-- skip host N1 tests;
-- hide profile/rebuild work;
-- remove frontier/dense replacement tests;
-- relax warnings-as-errors;
+- skip host tests;
+- weaken `-Werror`;
 - remove ARM32;
-- claim N1 complete from APK creation alone.
+- serialize generated machinery to satisfy checkpoint tests;
+- persist source authority;
+- change `stageComplete` to true in CI;
+- claim N2 complete from host/APK success alone.
 
-## Green CI meaning
+## Real-device boundary
 
-A green CI run proves:
+After green CI, the APK must still prove:
 
-- the N1 native experiment compiles on the host;
-- the host N1 falsification suite passes;
-- Android NDK compiles N1 for both required ARM ABIs;
-- the APK packages both libraries correctly.
+- Android in-process suite PASS;
+- Graph -> Tape real process restart PASS;
+- Tape -> Graph real process restart PASS.
 
-Real-device JNI execution remains mandatory before the Codynex roadmap may mark
-N1 complete.
+Until those are recorded, N2 remains ACTIVE.
